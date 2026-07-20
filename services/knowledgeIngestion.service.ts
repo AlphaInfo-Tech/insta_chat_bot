@@ -1,5 +1,5 @@
 import type { KnowledgeRepository } from '@/repositories/knowledge.repository';
-import type { KnowledgeDoc } from '@/types/knowledge';
+import type { KnowledgeDoc, KnowledgeFileSummary } from '@/types/knowledge';
 import { logger } from '@/utils/logger';
 
 const DEFAULT_CATEGORY = 'general';
@@ -36,6 +36,15 @@ export class KnowledgeIngestionService {
 
     logger.info('knowledge_ingested', { filename, pageCount: inserted.length, category: resolvedCategory });
     return inserted;
+  }
+
+  async listFiles(): Promise<KnowledgeFileSummary[]> {
+    return this.knowledgeRepo.listFiles();
+  }
+
+  async deleteFile(sourceFile: string): Promise<void> {
+    await this.knowledgeRepo.deleteByFile(sourceFile);
+    logger.info('knowledge_file_deleted', { filename: sourceFile });
   }
 
   private splitTxtPages(buffer: Buffer): string[] {

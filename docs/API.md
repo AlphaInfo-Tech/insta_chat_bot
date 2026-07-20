@@ -78,6 +78,36 @@ otherwise treated as a single page. Re-uploading the same filename replaces
 its existing rows (upsert on `source_file` + `source_page`) rather than
 duplicating them.
 
+## `GET /api/admin/knowledge`
+
+Lists previously ingested source files, one row per file aggregated across
+its pages. Backs the [`/admin/knowledge`](../app/admin/knowledge/page.tsx)
+upload page.
+
+**Headers**: same `x-admin-api-key` requirement as `POST`.
+
+**Response** `200`:
+```json
+{
+  "files": [
+    { "sourceFile": "faq.pdf", "category": "support", "pageCount": 12, "uploadedAt": "2026-07-20T10:00:00Z" }
+  ]
+}
+```
+
+## `DELETE /api/admin/knowledge?file=<sourceFile>`
+
+Deletes every row belonging to a source file (all of its ingested pages).
+
+**Headers**: same `x-admin-api-key` requirement as `POST`.
+
+**Response codes**:
+| Code | Meaning |
+|---|---|
+| `200` | `{ "deleted": "<sourceFile>" }` |
+| `400` | Missing `file` query parameter |
+| `401` | Missing/invalid `x-admin-api-key` |
+
 ## `search_knowledge(query text, match_limit int default 5)` (Supabase RPC)
 
 The SQL function backing all retrieval. Not exposed over HTTP directly, but

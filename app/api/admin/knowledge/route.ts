@@ -58,3 +58,30 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json({ filesProcessed, rowsInserted, results }, { status: 200 });
 }
+
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+
+  const { knowledgeIngestionService } = buildAppContainer();
+  const files = await knowledgeIngestionService.listFiles();
+
+  return NextResponse.json({ files }, { status: 200 });
+}
+
+export async function DELETE(req: NextRequest): Promise<NextResponse> {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+
+  const sourceFile = req.nextUrl.searchParams.get('file');
+  if (!sourceFile) {
+    return NextResponse.json({ error: 'missing "file" query parameter' }, { status: 400 });
+  }
+
+  const { knowledgeIngestionService } = buildAppContainer();
+  await knowledgeIngestionService.deleteFile(sourceFile);
+
+  return NextResponse.json({ deleted: sourceFile }, { status: 200 });
+}

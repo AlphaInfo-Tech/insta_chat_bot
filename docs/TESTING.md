@@ -29,6 +29,14 @@ need `vi.mock()`:
   directly; everything that *depends on* them is tested via the injected
   interface instead.
 
+This is unit-test mocking (fake objects, no real I/O, no network). It's
+separate from `MOCK_INSTAGRAM=true`, a **runtime** dry-run flag on
+[lib/instagram.ts](../lib/instagram.ts) that skips the real Instagram Send
+API call and logs the reply instead — every other layer (Supabase, Groq)
+still runs for real. That's for manually smoke-testing the deployed-shaped
+pipeline against `npm run dev` before you have a real Meta App, not for
+`npm test`. See [docs/DEPLOYMENT.md](DEPLOYMENT.md#4-smoke-test-locally-before-deploying).
+
 ## Adding a new test
 
 **Repository**: follow

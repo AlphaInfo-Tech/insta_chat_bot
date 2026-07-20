@@ -70,6 +70,11 @@ npm run dev
 npm test
 ```
 
+No real Meta App yet? Set `MOCK_INSTAGRAM=true` and run
+`npm run webhook:mock -- --text="..."` to exercise the full webhook → RAG →
+Groq pipeline locally with the outbound Instagram Send API call mocked out —
+see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#4-smoke-test-locally-before-deploying).
+
 ## Design notes
 
 - **No embeddings, no pgvector.** All retrieval is `plainto_tsquery()` +

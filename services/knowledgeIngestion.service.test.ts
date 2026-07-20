@@ -59,4 +59,23 @@ describe('KnowledgeIngestionService', () => {
 
     expect(upsertPage).toHaveBeenCalledWith(expect.objectContaining({ category: 'general' }));
   });
+
+  it('listFiles delegates to the repository', async () => {
+    const summaries = [{ sourceFile: 'faq.pdf', category: 'support', pageCount: 3, uploadedAt: '2026-07-20T10:00:00Z' }];
+    const listFiles = vi.fn().mockResolvedValue(summaries);
+    const knowledgeRepo = { listFiles } as unknown as KnowledgeRepository;
+    const service = new KnowledgeIngestionService(knowledgeRepo, async () => []);
+
+    expect(await service.listFiles()).toEqual(summaries);
+  });
+
+  it('deleteFile delegates to the repository', async () => {
+    const deleteByFile = vi.fn().mockResolvedValue(undefined);
+    const knowledgeRepo = { deleteByFile } as unknown as KnowledgeRepository;
+    const service = new KnowledgeIngestionService(knowledgeRepo, async () => []);
+
+    await service.deleteFile('faq.pdf');
+
+    expect(deleteByFile).toHaveBeenCalledWith('faq.pdf');
+  });
 });

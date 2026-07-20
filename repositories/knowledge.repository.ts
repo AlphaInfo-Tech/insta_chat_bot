@@ -1,6 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/database/types';
-import type { KnowledgeDoc, CreateKnowledgeInput, UpsertKnowledgePageInput } from '@/types/knowledge';
+import type {
+  KnowledgeDoc,
+  CreateKnowledgeInput,
+  UpsertKnowledgePageInput,
+  KnowledgeFileSummary,
+} from '@/types/knowledge';
 
 function mapRow(row: Database['public']['Tables']['knowledge']['Row']): KnowledgeDoc {
   return {
@@ -83,5 +88,43 @@ export class KnowledgeRepository {
 
     if (error) throw error;
     return mapRow(data);
+  }
+
+  /**
+   * One row per source file, aggregated across its pages. Rows come back
+   * ordered newest-first by created_at, so the first row seen per file is
+   * already its most recently ingested page.
+   */
+  async listFiles(): Promise<KnowledgeFileSummary[]> {
+    const { data, error } = await this.db
+      .from('knowledge')
+      .select('source_file, category, created_at')
+      .not('source_file', 'is', null)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const byFile = new Map<string, KnowledgeFileSummary>();
+    for (const row of data ?? []) {
+      if (!row.source_file) continue;
+      const existing = byFile.get(row.source_file);
+      if (existing) {
+        existing.pageCount += 1;
+      } else {
+        byFile.set(row.source_file, {
+          sourceFile: row.source_file,
+          category: row.category,
+          pageCount: 1,
+          uploadedAt: row.created_at,
+        });
+      }
+    }
+    return Array.from(byFile.values());
+  }
+
+  /** Deletes every page row belonging to a source file. */
+  async deleteByFile(sourceFile: string): Promise<void> {
+    const { error } = await this.db.from('knowledge').delete().eq('source_file', sourceFile);
+    if (error) throw error;
   }
 }

@@ -9,6 +9,11 @@ export class InstagramClient {
   private readonly apiVersion = process.env.INSTAGRAM_GRAPH_API_VERSION ?? 'v21.0';
 
   async sendMessage(recipientId: string, text: string): Promise<void> {
+    if (process.env.MOCK_INSTAGRAM === 'true') {
+      logger.info('instagram_send_mocked', { recipientId, text });
+      return;
+    }
+
     const accessToken = process.env.META_PAGE_ACCESS_TOKEN;
     if (!accessToken) throw new Error('META_PAGE_ACCESS_TOKEN must be set');
 

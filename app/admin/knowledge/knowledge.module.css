@@ -1,0 +1,147 @@
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.subtitle {
+  color: #666;
+  margin: 0 0 28px;
+  font-size: 14px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e3e3e6;
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+
+.cardTitle {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #444;
+}
+
+.input {
+  border: 1px solid #d2d2d6;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+  width: 100%;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.button {
+  background: #1a1a1a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.buttonDanger {
+  background: none;
+  color: #b3261e;
+  border: 1px solid #e3b3af;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.buttonDanger:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.buttonLink {
+  background: none;
+  border: none;
+  color: #444;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
+.status {
+  font-size: 13px;
+  margin-top: 10px;
+}
+
+.statusError {
+  color: #b3261e;
+}
+
+.statusOk {
+  color: #1a7f37;
+}
+
+.resultsTable,
+.filesTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+.resultsTable th,
+.resultsTable td,
+.filesTable th,
+.filesTable td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.filesTable th {
+  color: #666;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.empty {
+  color: #888;
+  font-size: 13px;
+}
+
+.keyRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}

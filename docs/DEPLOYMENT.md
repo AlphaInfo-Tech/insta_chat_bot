@@ -30,7 +30,35 @@ Create a key at [console.groq.com/keys](https://console.groq.com/keys) →
 [console.groq.com/docs/models](https://console.groq.com/docs/models) for
 current Qwen/DeepSeek model ids if you want to switch `GROQ_MODEL`.
 
-## 4. Deploy to Vercel
+## 4. Smoke-test locally before deploying
+
+Meta/Instagram is the most painful piece to set up (real Business account,
+App Review, public HTTPS webhook), so validate everything else first —
+Supabase, Groq, RAG retrieval, rate limiting, signature verification — with
+the outbound Instagram Send API call mocked out.
+
+1. Set `MOCK_INSTAGRAM=true` in `.env.local` (already the default in
+   `.env.example`). This makes [lib/instagram.ts](../lib/instagram.ts)
+   `sendMessage()` skip the real Graph API call and log the reply instead —
+   no `META_PAGE_ACCESS_TOKEN` or real Meta App required. Everything else
+   (Supabase reads/writes, the knowledge base / RAG lookup, Groq) still runs
+   for real, identically to live mode.
+2. `npm run dev`.
+3. In another terminal, simulate an incoming DM:
+   ```bash
+   npm run webhook:mock -- --text="what's your refund policy"
+   ```
+   This signs a synthetic Instagram webhook payload with your local
+   `META_APP_SECRET` and POSTs it to `http://localhost:3000/api/webhook` —
+   see [scripts/mock-webhook.ts](../scripts/mock-webhook.ts).
+4. Watch the `npm run dev` terminal for `webhook_*` / `groq_completion` /
+   `instagram_send_mocked` log lines, and confirm new rows appear in
+   Supabase's `customers`/`conversations`/`messages` tables.
+5. Set `MOCK_INSTAGRAM=false` (or unset it) once you're ready to wire up a
+   real Meta App and go live — this flag has no effect unless explicitly set
+   to `"true"`.
+
+## 5. Deploy to Vercel
 
 1. Push this repo to GitHub/GitLab/Bitbucket and import it into Vercel, or
    run `vercel --prod` from the CLI.
@@ -48,7 +76,7 @@ current Qwen/DeepSeek model ids if you want to switch `GROQ_MODEL`.
 admin knowledge route (PDF parsing can take longer). Adjust for your Vercel
 plan if needed — Hobby plans cap function duration lower than Pro/Enterprise.
 
-## 5. Configure the webhook subscription
+## 6. Configure the webhook subscription
 
 1. In the Meta App Dashboard, under **Instagram → Webhooks**, set the
    **Callback URL** to `https://your-app.vercel.app/api/webhook` and the
@@ -58,24 +86,32 @@ plan if needed — Hobby plans cap function duration lower than Pro/Enterprise.
 3. Subscribe to the `messages` field (and `messaging_postbacks`,
    `message_reactions` if you want those handled too).
 
-## 6. Add knowledge
+## 7. Add knowledge
 
-Drop your `.pdf`/`.txt` source files into a local `knowledge-source/` folder
-(gitignored) and run:
+**Option A — upload page.** Visit `https://your-app.vercel.app/admin/knowledge`,
+enter your `ADMIN_API_KEY` (stored only in your browser's localStorage), then
+drag in `.pdf`/`.txt` files and an optional category. The page lists every
+previously ingested file (with page counts) and lets you delete one to remove
+all of its rows. This page isn't behind its own auth beyond the admin key
+prompt, so don't index it publicly or share the URL outside your team.
+
+**Option B — CLI script.** Drop your `.pdf`/`.txt` source files into a local
+`knowledge-source/` folder (gitignored) and run:
 
 ```bash
 ADMIN_API_KEY=your-chosen-admin-api-key \
 npm run knowledge:upload -- --url=https://your-app.vercel.app --category=faq
 ```
 
-This POSTs each file to `/api/admin/knowledge`. See
-[docs/API.md](API.md#post-apiadminknowledge) for the endpoint contract.
+Both options POST to `/api/admin/knowledge`. See
+[docs/API.md](API.md#post-apiadminknowledge) for the full endpoint contract
+(including the `GET`/`DELETE` variants the upload page uses).
 
-## 7. Verify end-to-end
+## 8. Verify end-to-end
 
 1. **Webhook verification round-trip**: confirm the Meta Dashboard shows the
    webhook subscription as verified (green checkmark) — this already ran in
-   step 5.
+   step 6.
 2. **Test DM**: send a message from a personal Instagram account to the
    connected business account. Check Vercel's function logs
    (`vercel logs` or the dashboard) for `webhook_*` / `groq_completion` /
