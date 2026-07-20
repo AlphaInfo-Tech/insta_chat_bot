@@ -54,6 +54,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const { webhookService, rateLimitService } = buildAppContainer();
 
   for (const entry of payload.entry) {
+    if (!entry.messaging) {
+      logger.info('webhook_entry_skipped_no_messaging', { entryId: entry.id });
+      continue;
+    }
+
     for (const event of entry.messaging) {
       const rateLimitResult = await rateLimitService.checkAndIncrement(event.sender.id);
       if (!rateLimitResult.allowed) {

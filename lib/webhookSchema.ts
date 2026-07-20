@@ -34,7 +34,11 @@ const messagingEventSchema = z.object({
 const entrySchema = z.object({
   id: z.string(),
   time: z.number(),
-  messaging: z.array(messagingEventSchema),
+  // Optional: entries for webhook fields other than messages/postbacks/
+  // reactions (comments, mentions, a "standby" handover entry, Meta's
+  // dashboard "Test" ping, ...) share this same envelope but carry no
+  // `messaging` array. Ignore them instead of rejecting the whole payload.
+  messaging: z.array(messagingEventSchema).optional(),
 });
 
 export const instagramWebhookPayloadSchema = z.object({
