@@ -1,4 +1,5 @@
 import type { KnowledgeRepository } from '@/repositories/knowledge.repository';
+import type { EmbeddingsClient } from '@/lib/embeddings';
 import type { KnowledgeDoc } from '@/types/knowledge';
 import { estimateTokens } from '@/utils/tokenCounter';
 import { logger } from '@/utils/logger';
@@ -37,15 +38,20 @@ function extractExcerpt(content: string, query: string, maxChars: number): strin
 }
 
 export class RagService {
-  constructor(private readonly knowledgeRepo: KnowledgeRepository) {}
+  constructor(
+    private readonly knowledgeRepo: KnowledgeRepository,
+    private readonly embeddingsClient: EmbeddingsClient,
+  ) {}
 
   /**
-   * Retrieves the top-5 FTS matches and merges them into one Context section,
-   * using excerpt-based truncation (proportional to rank) to stay within the
-   * knowledge-context token budget rather than dropping whole documents.
+   * Retrieves the top-5 semantic matches and merges them into one Context
+   * section, using excerpt-based truncation (proportional to rank) to stay
+   * within the knowledge-context token budget rather than dropping whole
+   * documents.
    */
   async retrieveContext(userQuestion: string): Promise<RagContext> {
-    const docs = await this.knowledgeRepo.searchByQuery(userQuestion, TOP_K);
+    const queryEmbedding = await this.embeddingsClient.embed(userQuestion);
+    const docs = await this.knowledgeRepo.searchByEmbedding(queryEmbedding, TOP_K);
 
     if (docs.length === 0) {
       logger.info('rag_search', { query: userQuestion, resultCount: 0 });

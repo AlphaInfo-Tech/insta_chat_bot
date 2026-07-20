@@ -108,14 +108,32 @@ Deletes every row belonging to a source file (all of its ingested pages).
 | `400` | Missing `file` query parameter |
 | `401` | Missing/invalid `x-admin-api-key` |
 
-## `search_knowledge(query text, match_limit int default 5)` (Supabase RPC)
+## `match_knowledge(query_embedding vector(384), match_limit int default 5)` (Supabase RPC)
 
 The SQL function backing all retrieval. Not exposed over HTTP directly, but
-callable via `supabase.rpc('search_knowledge', { query, match_limit })` from
-any Supabase client for debugging.
+callable via `supabase.rpc('match_knowledge', { query_embedding, match_limit })`
+from any Supabase client for debugging — you'll need a real 384-dim embedding
+vector (e.g. from `POST /functions/v1/generate-embedding`) to pass in.
 
 ```sql
-select * from search_knowledge('refund', 5);
+select * from match_knowledge(array_fill(0, array[384])::vector, 5); -- placeholder vector
 ```
 
-Returns rows ranked by `ts_rank()` against `plainto_tsquery('english', query)`.
+Returns rows ranked by cosine similarity (`1 - (embedding <=> query_embedding)`,
+aliased as `rank`), HNSW-indexed. See
+[sql/011_vector_search.sql](../sql/011_vector_search.sql).
+
+## `POST /functions/v1/generate-embedding` (Supabase Edge Function)
+
+Generates a 384-dim embedding vector for a piece of text using the
+Supabase-hosted `gte-small` model. Called server-side by
+`lib/embeddings.ts` — once per knowledge page during ingestion, and once per
+incoming user question during retrieval. Not part of the public webhook
+surface.
+
+**Headers**: `apikey` and `Authorization: Bearer <key>`, both set to
+`SUPABASE_SERVICE_ROLE_KEY` when called from this app.
+
+**Body**: `{ "input": "text to embed" }`
+
+**Response** `200`: `{ "embedding": [0.123, -0.456, ...] }` (384 numbers)

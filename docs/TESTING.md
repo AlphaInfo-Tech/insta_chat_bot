@@ -19,15 +19,18 @@ need `vi.mock()`:
   .single()/.maybeSingle()/.rpc()`, configured with a fixed `{ data, error }`
   result per test.
 - **Service tests** pass plain object literals cast to the repository/client
-  interface (`{ searchByQuery: async () => [...] } as unknown as
+  interface (`{ searchByEmbedding: async () => [...] } as unknown as
   KnowledgeRepository`), using `vi.fn()` where you need to assert a call
   happened.
 - Only [lib/groq.ts](../lib/groq.ts), [lib/instagram.ts](../lib/instagram.ts),
-  and [lib/pdfExtractor.ts](../lib/pdfExtractor.ts) — the files that actually
+  [lib/embeddings.ts](../lib/embeddings.ts), and
+  [lib/pdfExtractor.ts](../lib/pdfExtractor.ts) — the files that actually
   own an outbound `fetch`/third-party library call — would need real
   mocking (`vi.spyOn(global, 'fetch')` etc.) if you add tests for them
   directly; everything that *depends on* them is tested via the injected
-  interface instead.
+  interface instead (e.g. `services/rag.service.test.ts` and
+  `services/knowledgeIngestion.service.test.ts` pass a fake
+  `{ embed: vi.fn() }` in place of `EmbeddingsClient`).
 
 This is unit-test mocking (fake objects, no real I/O, no network). It's
 separate from `MOCK_INSTAGRAM=true`, a **runtime** dry-run flag on

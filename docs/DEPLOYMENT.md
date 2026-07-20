@@ -7,10 +7,25 @@
    `001_extensions.sql` → `002_customers.sql` → `003_conversations.sql` →
    `004_messages.sql` → `005_knowledge.sql` → `006_knowledge_search_function.sql`
    → `007_conversation_summaries.sql` → `008_rate_limits.sql` →
-   `009_processed_webhook_events.sql` → `010_updated_at_trigger.sql`.
+   `009_processed_webhook_events.sql` → `010_updated_at_trigger.sql` →
+   `011_vector_search.sql` → `012_drop_fts.sql`. (`006`/`012` together mean
+   the FTS search function is created then immediately torn down again —
+   that's expected; `006` exists for reference/history, `011`+`012` is what
+   actually ends up live.)
 3. From **Project Settings → API**, copy the Project URL and the
    `service_role` key (not the `anon` key — this app runs entirely
    server-side and needs to bypass RLS).
+4. Deploy the embedding Edge Function (requires the
+   [Supabase CLI](https://supabase.com/docs/guides/cli)):
+   ```bash
+   supabase login
+   supabase link --project-ref <your-project-ref>
+   supabase functions deploy generate-embedding
+   ```
+   This runs the built-in `gte-small` model (384 dims) inside Supabase's
+   Edge Runtime — no separate embeddings API/key needed.
+   `lib/embeddings.ts` calls it using `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`,
+   both of which you've already set from step 3.
 
 ## 2. Create the Meta App + Instagram messaging product
 
@@ -142,7 +157,7 @@ Both options POST to `/api/admin/knowledge`. See
 | `instagram_send_failed` with `401` / "Cannot parse access token" | Most likely cause: token/endpoint mismatch. This app calls `graph.instagram.com` and requires an Instagram User Access Token (`IGAA...`, from Instagram Business Login) — a Facebook Page Access Token (`EAA...`, from Facebook Login for Business, used against `graph.facebook.com`) will fail with exactly this error even though it "looks" valid. Confirm `META_PAGE_ACCESS_TOKEN` starts with `IGAA`. Secondary causes: a stale `INSTAGRAM_GRAPH_API_VERSION` (check developers.facebook.com/docs/graph-api/changelog for the current version), or stray whitespace/newline from copy-paste |
 | `instagram_send_failed` with `401` / "Error validating access token" or "Session has expired" | The token itself is invalid or expired — regenerate an Instagram User Access Token with `instagram_business_manage_messages` permission and update the Vercel env var |
 | Bot never replies (no `instagram_send_*` log line at all) | Check `instagram_reply_failed`/`groq_completion_failed` instead — the failure is earlier in the pipeline, not the send step |
-| Replies say "I couldn't find that information..." for everything | No rows in `knowledge`, or `search_vector` isn't matching — run `select * from search_knowledge('your query')` directly in the Supabase SQL editor to debug |
+| Replies say "I couldn't find that information..." for everything | No rows in `knowledge` (check `embedding is not null`), or the `generate-embedding` function isn't deployed/reachable — check for `embedding request failed` errors in the logs, and confirm `select count(*) from knowledge where embedding is not null;` is non-zero in the Supabase SQL editor |
 | Admin upload returns 401 | `ADMIN_API_KEY` mismatch between the script's environment and the deployed app's env var |
 
 Note: editing an environment variable in Vercel's dashboard doesn't affect

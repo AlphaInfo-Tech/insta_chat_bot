@@ -78,6 +78,7 @@ export interface Database {
           content: string;
           source_file: string | null;
           source_page: number | null;
+          embedding: number[] | null;
           created_at: string;
         };
         Insert: {
@@ -88,6 +89,7 @@ export interface Database {
           content: string;
           source_file?: string | null;
           source_page?: number | null;
+          embedding?: number[] | null;
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['knowledge']['Insert']>;
@@ -146,8 +148,8 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
-      search_knowledge: {
-        Args: { query: string; match_limit?: number };
+      match_knowledge: {
+        Args: { query_embedding: number[]; match_limit?: number };
         Returns: {
           id: string;
           title: string;

@@ -1,9 +1,12 @@
-# Instagram AI Chatbot (RAG over PostgreSQL Full-Text Search)
+# Instagram AI Chatbot (RAG over pgvector semantic search)
 
 A production-ready Instagram DM chatbot that answers customer questions using
-Retrieval-Augmented Generation — **without embeddings or a vector database**.
-Retrieval runs entirely on PostgreSQL Full-Text Search (`tsvector`, GIN index,
-`plainto_tsquery`, `ts_rank`).
+Retrieval-Augmented Generation, with **semantic vector search** via pgvector
+— an extension inside the same Supabase Postgres already in use, so there's
+still no separate vector database service to run. Embeddings are generated
+by the built-in `gte-small` model running in a Supabase Edge Function
+(`supabase/functions/generate-embedding`), so no third-party embeddings API
+or key is required either.
 
 ## Architecture
 
@@ -17,17 +20,22 @@ app/api/webhook/route.ts   (GET verify, POST signature+schema+rate-limit, dispat
 services/webhook.service.ts   (orchestrator)
    │        │            │            │            │
    ▼        ▼            ▼            ▼            ▼
-customer  conversation  message   rag.service   prompt.service
-.service  .service      .service  (FTS search)  (assembles the prompt)
+customer  conversation  message   rag.service      prompt.service
+.service  .service      .service  (pgvector search) (assembles the prompt)
    │        │            │            │            │
    ▼        ▼            ▼            ▼            ▼
 repositories/  (the only layer that touches Supabase)
    │
    ▼
 Supabase PostgreSQL  (customers, conversations, messages, knowledge, ...)
+   │
+   ▼
+supabase/functions/generate-embedding  (gte-small, called by rag.service +
+                                         knowledgeIngestion.service)
 
 lib/groq.ts        → Groq chat completions (RAG answers + summarization)
 lib/instagram.ts   → Instagram Send API (outbound replies)
+lib/embeddings.ts  → Supabase Edge Function client (text → 384-dim vector)
 ```
 
 Repositories are the only files that talk to Supabase. Services depend on
@@ -44,7 +52,9 @@ See [docs/API.md](docs/API.md), [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), and
 app/api/webhook/route.ts        Instagram webhook (GET verify + POST events)
 app/api/admin/knowledge/route.ts Admin endpoint to ingest PDF/TXT knowledge files
 lib/                              External integrations: supabase, groq, instagram,
-                                   pdfExtractor, verifySignature, webhookSchema, composition
+                                   embeddings, pdfExtractor, verifySignature, webhookSchema,
+                                   composition
+supabase/functions/               Deno Edge Functions (generate-embedding: gte-small model)
 services/                         Business logic (repository/lib clients injected)
 repositories/                     Only layer touching Supabase
 utils/                            logger, tokenCounter, retry, intent
@@ -62,8 +72,10 @@ npm install
 cp .env.example .env.local   # fill in real values (see docs/DEPLOYMENT.md)
 ```
 
-Run `sql/001_extensions.sql` through `sql/010_updated_at_trigger.sql` in order
-in the Supabase SQL editor (or via `psql`), then:
+Run `sql/001_extensions.sql` through `sql/012_drop_fts.sql` in order in the
+Supabase SQL editor (or via `psql`), then deploy the embedding function:
+`supabase functions deploy generate-embedding` (see
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)). Then:
 
 ```bash
 npm run dev
@@ -77,10 +89,13 @@ see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#4-smoke-test-locally-before-deployin
 
 ## Design notes
 
-- **No embeddings, no pgvector.** All retrieval is `plainto_tsquery()` +
-  `ts_rank()` against a generated `tsvector` column, GIN-indexed. See
-  [sql/005_knowledge.sql](sql/005_knowledge.sql) and
-  [sql/006_knowledge_search_function.sql](sql/006_knowledge_search_function.sql).
+- **Semantic search via pgvector.** Every knowledge page and every incoming
+  question is embedded (384-dim, `gte-small`, via the `generate-embedding`
+  Edge Function) and matched by cosine similarity (`<=>`, HNSW-indexed) —
+  see [sql/011_vector_search.sql](sql/011_vector_search.sql). This replaced
+  an earlier PostgreSQL Full-Text Search implementation
+  ([sql/012_drop_fts.sql](sql/012_drop_fts.sql)) because keyword-only
+  matching missed paraphrased/loosely-worded customer questions.
 - **Token budgets** are enforced per section: knowledge context ≤1200 tokens
   (excerpt-based, proportional to rank), conversation history ≤600 tokens
   (oldest messages dropped first), answer ≤250 tokens via Groq's `max_tokens`.

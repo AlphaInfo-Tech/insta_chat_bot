@@ -1,6 +1,7 @@
 import { getSupabaseClient } from '@/lib/supabase';
 import { GroqClient } from '@/lib/groq';
 import { InstagramClient } from '@/lib/instagram';
+import { EmbeddingsClient } from '@/lib/embeddings';
 import { extractPdfPages } from '@/lib/pdfExtractor';
 import { CustomerRepository } from '@/repositories/customer.repository';
 import { ConversationRepository } from '@/repositories/conversation.repository';
@@ -34,14 +35,15 @@ export function buildAppContainer() {
 
   const groqClient = new GroqClient();
   const instagramClient = new InstagramClient();
+  const embeddingsClient = new EmbeddingsClient();
 
   const customerService = new CustomerService(customerRepo);
   const conversationService = new ConversationService(conversationRepo, messageRepo, groqClient);
   const messageService = new MessageService(messageRepo);
-  const ragService = new RagService(knowledgeRepo);
+  const ragService = new RagService(knowledgeRepo, embeddingsClient);
   const promptService = new PromptService();
   const rateLimitService = new RateLimitService(rateLimitRepo);
-  const knowledgeIngestionService = new KnowledgeIngestionService(knowledgeRepo, extractPdfPages);
+  const knowledgeIngestionService = new KnowledgeIngestionService(knowledgeRepo, extractPdfPages, embeddingsClient);
 
   const webhookService = new WebhookService(
     customerService,

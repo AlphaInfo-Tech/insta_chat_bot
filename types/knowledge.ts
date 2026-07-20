@@ -5,7 +5,7 @@ export interface KnowledgeDoc {
   content: string;
   sourceFile: string | null;
   sourcePage: number | null;
-  /** Present only on FTS search results (ts_rank score). */
+  /** Present only on vector search results (cosine similarity, 1 - distance). */
   rank?: number;
 }
 
@@ -19,6 +19,7 @@ export interface CreateKnowledgeInput {
 export interface UpsertKnowledgePageInput extends CreateKnowledgeInput {
   sourceFile: string;
   sourcePage: number;
+  embedding: number[];
 }
 
 /** One row per ingested source file, aggregated across its pages. */

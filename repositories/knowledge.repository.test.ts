@@ -9,7 +9,7 @@ function asClient(mock: unknown) {
 }
 
 describe('KnowledgeRepository', () => {
-  it('searchByQuery calls the search_knowledge RPC and maps ranked results', async () => {
+  it('searchByEmbedding calls the match_knowledge RPC and maps ranked results', async () => {
     const db = createMockSupabaseClient({
       rpcResult: {
         data: [
@@ -28,7 +28,7 @@ describe('KnowledgeRepository', () => {
     });
     const repo = new KnowledgeRepository(asClient(db));
 
-    const results = await repo.searchByQuery('refund', 5);
+    const results = await repo.searchByEmbedding([0.1, 0.2, 0.3], 5);
 
     expect(results).toEqual([
       {
@@ -43,11 +43,11 @@ describe('KnowledgeRepository', () => {
     ]);
   });
 
-  it('searchByQuery returns an empty array when there are no matches', async () => {
+  it('searchByEmbedding returns an empty array when there are no matches', async () => {
     const db = createMockSupabaseClient({ rpcResult: { data: [], error: null } });
     const repo = new KnowledgeRepository(asClient(db));
 
-    const results = await repo.searchByQuery('nonexistent-topic');
+    const results = await repo.searchByEmbedding([0.1, 0.2, 0.3]);
 
     expect(results).toEqual([]);
   });

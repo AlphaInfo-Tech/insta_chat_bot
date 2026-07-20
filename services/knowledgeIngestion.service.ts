@@ -1,4 +1,5 @@
 import type { KnowledgeRepository } from '@/repositories/knowledge.repository';
+import type { EmbeddingsClient } from '@/lib/embeddings';
 import type { KnowledgeDoc, KnowledgeFileSummary } from '@/types/knowledge';
 import { logger } from '@/utils/logger';
 
@@ -10,6 +11,7 @@ export class KnowledgeIngestionService {
   constructor(
     private readonly knowledgeRepo: KnowledgeRepository,
     private readonly extractPdfPages: (buffer: Buffer) => Promise<string[]>,
+    private readonly embeddingsClient: EmbeddingsClient,
   ) {}
 
   async ingestFile(buffer: Buffer, filename: string, category?: string): Promise<KnowledgeDoc[]> {
@@ -24,12 +26,14 @@ export class KnowledgeIngestionService {
       if (!pageText) continue;
 
       const pageNumber = i + 1;
+      const embedding = await this.embeddingsClient.embed(pageText);
       const doc = await this.knowledgeRepo.upsertPage({
         title: `${filename} — Page ${pageNumber}`,
         category: resolvedCategory,
         content: pageText,
         sourceFile: filename,
         sourcePage: pageNumber,
+        embedding,
       });
       inserted.push(doc);
     }

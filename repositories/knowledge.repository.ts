@@ -21,10 +21,10 @@ function mapRow(row: Database['public']['Tables']['knowledge']['Row']): Knowledg
 export class KnowledgeRepository {
   constructor(private readonly db: SupabaseClient<Database>) {}
 
-  /** Top-N FTS matches via the search_knowledge RPC (plainto_tsquery + ts_rank, GIN-indexed). */
-  async searchByQuery(query: string, matchLimit = 5): Promise<KnowledgeDoc[]> {
-    const { data, error } = await this.db.rpc('search_knowledge', {
-      query,
+  /** Top-N semantic matches via the match_knowledge RPC (pgvector cosine similarity, HNSW-indexed). */
+  async searchByEmbedding(queryEmbedding: number[], matchLimit = 5): Promise<KnowledgeDoc[]> {
+    const { data, error } = await this.db.rpc('match_knowledge', {
+      query_embedding: queryEmbedding,
       match_limit: matchLimit,
     });
 
@@ -80,6 +80,7 @@ export class KnowledgeRepository {
           content: input.content,
           source_file: input.sourceFile,
           source_page: input.sourcePage,
+          embedding: input.embedding,
         },
         { onConflict: 'source_file,source_page' },
       )

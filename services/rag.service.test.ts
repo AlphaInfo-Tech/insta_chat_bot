@@ -1,16 +1,21 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { KnowledgeRepository } from '@/repositories/knowledge.repository';
+import type { EmbeddingsClient } from '@/lib/embeddings';
 import type { KnowledgeDoc } from '@/types/knowledge';
 import { RagService } from './rag.service';
 import { estimateTokens } from '@/utils/tokenCounter';
 
 function fakeKnowledgeRepo(docs: KnowledgeDoc[]): KnowledgeRepository {
-  return { searchByQuery: async () => docs } as unknown as KnowledgeRepository;
+  return { searchByEmbedding: async () => docs } as unknown as KnowledgeRepository;
+}
+
+function fakeEmbeddingsClient(): EmbeddingsClient {
+  return { embed: vi.fn().mockResolvedValue([0.1, 0.2, 0.3]) } as unknown as EmbeddingsClient;
 }
 
 describe('RagService', () => {
   it('returns empty context when there are no matches', async () => {
-    const service = new RagService(fakeKnowledgeRepo([]));
+    const service = new RagService(fakeKnowledgeRepo([]), fakeEmbeddingsClient());
     const result = await service.retrieveContext('refund');
     expect(result.docs).toEqual([]);
     expect(result.contextText).toBe('');
@@ -27,7 +32,7 @@ describe('RagService', () => {
       { id: 'e', title: 'Doc E', category: null, content: longContent, sourceFile: null, sourcePage: null, rank: 0.05 },
     ];
 
-    const service = new RagService(fakeKnowledgeRepo(docs));
+    const service = new RagService(fakeKnowledgeRepo(docs), fakeEmbeddingsClient());
     const result = await service.retrieveContext('refund policy');
 
     expect(estimateTokens(result.contextText)).toBeLessThanOrEqual(1200);
@@ -40,7 +45,7 @@ describe('RagService', () => {
       { id: 'low', title: 'Low Rank', category: null, content: longContent, sourceFile: null, sourcePage: null, rank: 0.1 },
     ];
 
-    const service = new RagService(fakeKnowledgeRepo(docs));
+    const service = new RagService(fakeKnowledgeRepo(docs), fakeEmbeddingsClient());
     const result = await service.retrieveContext('x');
 
     const highSection = result.contextText.split('### Low Rank')[0] ?? '';
