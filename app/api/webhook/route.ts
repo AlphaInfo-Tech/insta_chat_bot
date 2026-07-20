@@ -33,7 +33,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const signatureHeader = req.headers.get('x-hub-signature-256');
   if (!verifyMetaSignature(rawBody, signatureHeader, appSecret)) {
-    logger.warn('webhook_invalid_signature');
+    logger.warn('webhook_invalid_signature', { hasSignatureHeader: Boolean(signatureHeader) });
     return NextResponse.json({ error: 'invalid signature' }, { status: 401 });
   }
 

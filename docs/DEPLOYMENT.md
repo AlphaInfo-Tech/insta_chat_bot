@@ -125,7 +125,13 @@ Both options POST to `/api/admin/knowledge`. See
 | Symptom | Likely cause |
 |---|---|
 | Webhook verification fails (403) | `META_VERIFY_TOKEN` in Vercel env doesn't match what you entered in the Meta Dashboard |
-| `401` on every POST | `META_APP_SECRET` mismatch, or the request body was modified in transit (e.g. by a proxy) before signature verification |
-| Bot never replies | Check `META_PAGE_ACCESS_TOKEN` validity/permissions, and confirm `instagram_send_success`/`instagram_send_failed` log lines |
+| `401` on every POST to `/api/webhook` | `META_APP_SECRET` mismatch, or the request body was modified in transit (e.g. by a proxy) before signature verification. Check the `webhook_invalid_signature` log's `hasSignatureHeader` field: `false` means unsigned probe traffic (harmless, ignore it); `true` means a real mismatch worth chasing |
+| `instagram_send_failed` with `401` / "Cannot parse access token" | Usually a stale `INSTAGRAM_GRAPH_API_VERSION` — Meta only keeps roughly the last ~2 years of Graph API versions live, and calling a retired version can surface as this generic OAuth error rather than a clear "version deprecated" one. Check developers.facebook.com/docs/graph-api/changelog for the current version and update the Vercel env var. Also re-copy `META_PAGE_ACCESS_TOKEN` in case a stray whitespace/newline got pasted in |
+| `instagram_send_failed` with `401` / "Error validating access token" or "Session has expired" | The token itself is invalid or expired — regenerate a Page Access Token with `instagram_manage_messages` permission and update the Vercel env var |
+| Bot never replies (no `instagram_send_*` log line at all) | Check `instagram_reply_failed`/`groq_completion_failed` instead — the failure is earlier in the pipeline, not the send step |
 | Replies say "I couldn't find that information..." for everything | No rows in `knowledge`, or `search_vector` isn't matching — run `select * from search_knowledge('your query')` directly in the Supabase SQL editor to debug |
 | Admin upload returns 401 | `ADMIN_API_KEY` mismatch between the script's environment and the deployed app's env var |
+
+Note: editing an environment variable in Vercel's dashboard doesn't affect
+already-running deployments — you must redeploy for the new value to take
+effect.

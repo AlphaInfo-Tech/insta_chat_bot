@@ -6,7 +6,7 @@ interface GraphApiErrorBody {
 }
 
 export class InstagramClient {
-  private readonly apiVersion = process.env.INSTAGRAM_GRAPH_API_VERSION ?? 'v21.0';
+  private readonly apiVersion = process.env.INSTAGRAM_GRAPH_API_VERSION ?? 'v25.0';
 
   async sendMessage(recipientId: string, text: string): Promise<void> {
     if (process.env.MOCK_INSTAGRAM === 'true') {
@@ -14,7 +14,7 @@ export class InstagramClient {
       return;
     }
 
-    const accessToken = process.env.META_PAGE_ACCESS_TOKEN;
+    const accessToken = process.env.META_PAGE_ACCESS_TOKEN?.trim();
     if (!accessToken) throw new Error('META_PAGE_ACCESS_TOKEN must be set');
 
     const url = `https://graph.facebook.com/${this.apiVersion}/me/messages`;
