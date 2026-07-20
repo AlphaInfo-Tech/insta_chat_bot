@@ -14,12 +14,25 @@
 
 ## 2. Create the Meta App + Instagram messaging product
 
+This app uses **Instagram API with Instagram Login** — a direct Instagram
+Business Login, no Facebook Page involved. Meta also offers a separate
+"Facebook Login for Business" path (connect via a Facebook Page), but that
+issues a different token type (`EAA...`-prefixed Page Access Tokens, used
+against `graph.facebook.com`) that is **not** compatible with this codebase,
+which calls `graph.instagram.com` and expects an Instagram User Access
+Token (`IGAA...`-prefixed). Using the wrong flow here produces a confusing
+`401 "Cannot parse access token"` error that looks like a bad/expired token
+even when it isn't.
+
 1. Create an app at [developers.facebook.com](https://developers.facebook.com).
-2. Add the **Instagram** product and connect it to a Business/Creator
-   Instagram account (via a connected Facebook Page).
+2. Add the **Instagram** product and connect it via **Instagram Business
+   Login** directly to your Business/Creator Instagram account (no
+   Facebook Page needed).
 3. Under **App Settings → Basic**, copy the **App Secret** → `META_APP_SECRET`.
-4. Generate a Page Access Token with `instagram_manage_messages` permission →
-   `META_PAGE_ACCESS_TOKEN`.
+4. Generate an Instagram User Access Token with the
+   `instagram_business_manage_messages` permission → `META_PAGE_ACCESS_TOKEN`
+   (name kept for backward compatibility; it's really the Instagram User
+   Access Token, not a Facebook Page token).
 5. Choose your own value for `META_VERIFY_TOKEN` (any random string you
    pick) — you'll enter this in the next step.
 
@@ -126,8 +139,8 @@ Both options POST to `/api/admin/knowledge`. See
 |---|---|
 | Webhook verification fails (403) | `META_VERIFY_TOKEN` in Vercel env doesn't match what you entered in the Meta Dashboard |
 | `401` on every POST to `/api/webhook` | `META_APP_SECRET` mismatch, or the request body was modified in transit (e.g. by a proxy) before signature verification. Check the `webhook_invalid_signature` log's `hasSignatureHeader` field: `false` means unsigned probe traffic (harmless, ignore it); `true` means a real mismatch worth chasing |
-| `instagram_send_failed` with `401` / "Cannot parse access token" | Usually a stale `INSTAGRAM_GRAPH_API_VERSION` — Meta only keeps roughly the last ~2 years of Graph API versions live, and calling a retired version can surface as this generic OAuth error rather than a clear "version deprecated" one. Check developers.facebook.com/docs/graph-api/changelog for the current version and update the Vercel env var. Also re-copy `META_PAGE_ACCESS_TOKEN` in case a stray whitespace/newline got pasted in |
-| `instagram_send_failed` with `401` / "Error validating access token" or "Session has expired" | The token itself is invalid or expired — regenerate a Page Access Token with `instagram_manage_messages` permission and update the Vercel env var |
+| `instagram_send_failed` with `401` / "Cannot parse access token" | Most likely cause: token/endpoint mismatch. This app calls `graph.instagram.com` and requires an Instagram User Access Token (`IGAA...`, from Instagram Business Login) — a Facebook Page Access Token (`EAA...`, from Facebook Login for Business, used against `graph.facebook.com`) will fail with exactly this error even though it "looks" valid. Confirm `META_PAGE_ACCESS_TOKEN` starts with `IGAA`. Secondary causes: a stale `INSTAGRAM_GRAPH_API_VERSION` (check developers.facebook.com/docs/graph-api/changelog for the current version), or stray whitespace/newline from copy-paste |
+| `instagram_send_failed` with `401` / "Error validating access token" or "Session has expired" | The token itself is invalid or expired — regenerate an Instagram User Access Token with `instagram_business_manage_messages` permission and update the Vercel env var |
 | Bot never replies (no `instagram_send_*` log line at all) | Check `instagram_reply_failed`/`groq_completion_failed` instead — the failure is earlier in the pipeline, not the send step |
 | Replies say "I couldn't find that information..." for everything | No rows in `knowledge`, or `search_vector` isn't matching — run `select * from search_knowledge('your query')` directly in the Supabase SQL editor to debug |
 | Admin upload returns 401 | `ADMIN_API_KEY` mismatch between the script's environment and the deployed app's env var |

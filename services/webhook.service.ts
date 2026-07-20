@@ -60,13 +60,13 @@ export class WebhookService {
 
     if (isAttachmentOnly) {
       const canned = getAttachmentCannedResponse(attachmentType);
-      await this.replyWithCanned(conversation.id, event.sender.id, canned);
+      await this.replyWithCanned(conversation.id, event.sender.id, event.recipient.id, canned);
       return;
     }
 
     const { intent, cannedResponse } = detectIntent(text);
     if (intent !== 'business_question' && cannedResponse) {
-      await this.replyWithCanned(conversation.id, event.sender.id, cannedResponse);
+      await this.replyWithCanned(conversation.id, event.sender.id, event.recipient.id, cannedResponse);
       return;
     }
 
@@ -97,16 +97,21 @@ export class WebhookService {
     await this.messageService.saveAssistantMessage(conversation.id, replyText, completionTokens);
 
     try {
-      await this.instagramClient.sendMessage(event.sender.id, replyText);
+      await this.instagramClient.sendMessage(event.sender.id, replyText, event.recipient.id);
     } catch (err) {
       logger.error('instagram_reply_failed', { error: String(err), senderId: event.sender.id });
     }
   }
 
-  private async replyWithCanned(conversationId: string, senderId: string, canned: string): Promise<void> {
+  private async replyWithCanned(
+    conversationId: string,
+    senderId: string,
+    igBusinessAccountId: string,
+    canned: string,
+  ): Promise<void> {
     await this.messageService.saveAssistantMessage(conversationId, canned, 0);
     try {
-      await this.instagramClient.sendMessage(senderId, canned);
+      await this.instagramClient.sendMessage(senderId, canned, igBusinessAccountId);
     } catch (err) {
       logger.error('instagram_reply_failed', { error: String(err), senderId });
     }

@@ -106,7 +106,7 @@ describe('WebhookService.handleIncomingMessage', () => {
 
     expect(groqClient.createCompletion).not.toHaveBeenCalled();
     expect(messageService.saveAssistantMessage).toHaveBeenCalled();
-    expect(instagramClient.sendMessage).toHaveBeenCalledWith('ig-1', expect.stringContaining('text messages'));
+    expect(instagramClient.sendMessage).toHaveBeenCalledWith('ig-1', expect.stringContaining('text messages'), 'page-1');
   });
 
   it('sends a canned reply for greetings without calling Groq/RAG', async () => {
@@ -115,7 +115,7 @@ describe('WebhookService.handleIncomingMessage', () => {
 
     expect(ragService.retrieveContext).not.toHaveBeenCalled();
     expect(groqClient.createCompletion).not.toHaveBeenCalled();
-    expect(instagramClient.sendMessage).toHaveBeenCalledWith('ig-1', expect.any(String));
+    expect(instagramClient.sendMessage).toHaveBeenCalledWith('ig-1', expect.any(String), 'page-1');
   });
 
   it('runs the full RAG + Groq flow for business questions and replies via Instagram', async () => {
@@ -125,7 +125,7 @@ describe('WebhookService.handleIncomingMessage', () => {
     expect(ragService.retrieveContext).toHaveBeenCalledWith('What is your refund policy?');
     expect(groqClient.createCompletion).toHaveBeenCalledTimes(1);
     expect(messageService.saveAssistantMessage).toHaveBeenCalledWith('conv-1', 'The refund policy is 30 days.', 42);
-    expect(instagramClient.sendMessage).toHaveBeenCalledWith('ig-1', 'The refund policy is 30 days.');
+    expect(instagramClient.sendMessage).toHaveBeenCalledWith('ig-1', 'The refund policy is 30 days.', 'page-1');
   });
 
   it('falls back to the canned unavailable-answer text when Groq fails', async () => {

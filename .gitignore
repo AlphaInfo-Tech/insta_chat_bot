@@ -34,3 +34,6 @@ Thumbs.db
 
 # local knowledge source staging (uploaded via admin API, not committed)
 knowledge-source/
+
+.vercel
+.env*

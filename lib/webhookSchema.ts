@@ -18,7 +18,10 @@ const postbackSchema = z.object({
 });
 
 const reactionSchema = z.object({
-  reaction: z.string(),
+  // Meta only includes `reaction`/`emoji` when action is "react" — an
+  // "unreact" notification is action-only.
+  reaction: z.string().optional(),
+  emoji: z.string().optional(),
   action: z.enum(['react', 'unreact']),
 });
 

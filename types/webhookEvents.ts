@@ -16,7 +16,9 @@ export interface InstagramPostback {
 }
 
 export interface InstagramReaction {
-  reaction: string;
+  // Meta only includes these when action is "react"; "unreact" is action-only.
+  reaction?: string;
+  emoji?: string;
   action: 'react' | 'unreact';
 }
 
