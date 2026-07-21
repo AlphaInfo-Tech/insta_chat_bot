@@ -5,6 +5,20 @@ interface GraphApiErrorBody {
   error?: { message?: string; type?: string; code?: number };
 }
 
+const MAX_MESSAGE_LENGTH = 1000;
+
+/** Instagram's Send API rejects text over 1000 chars; cut to the nearest word boundary and mark the cut with an ellipsis rather than sending a doomed request. */
+export function truncateForInstagram(text: string): string {
+  if (text.length <= MAX_MESSAGE_LENGTH) return text;
+
+  const budget = MAX_MESSAGE_LENGTH - 1; // reserve 1 char for the ellipsis
+  const hardCut = text.slice(0, budget);
+  const lastSpace = hardCut.lastIndexOf(' ');
+  const wordBoundaryCut = lastSpace > 0 ? hardCut.slice(0, lastSpace) : hardCut;
+
+  return `${wordBoundaryCut}…`;
+}
+
 export class InstagramClient {
   private readonly apiVersion = process.env.INSTAGRAM_GRAPH_API_VERSION ?? 'v25.0';
 
@@ -17,7 +31,16 @@ export class InstagramClient {
    * graph.facebook.com/me/messages, which is the Facebook Page Login flow's
    * endpoint and expects a different token format ("EAA...").
    */
-  async sendMessage(recipientId: string, text: string, igBusinessAccountId: string): Promise<void> {
+  async sendMessage(recipientId: string, rawText: string, igBusinessAccountId: string): Promise<void> {
+    const text = truncateForInstagram(rawText);
+    if (text.length !== rawText.length) {
+      logger.warn('instagram_message_truncated', {
+        recipientId,
+        originalLength: rawText.length,
+        truncatedLength: text.length,
+      });
+    }
+
     if (process.env.MOCK_INSTAGRAM === 'true') {
       logger.info('instagram_send_mocked', { recipientId, text });
       return;
