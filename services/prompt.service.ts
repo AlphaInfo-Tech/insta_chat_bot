@@ -41,9 +41,10 @@ export class PromptService {
     const truncatedHistory = truncateHistory(input.recentMessages, CONVERSATION_HISTORY_MAX_TOKENS);
     const historyText = truncatedHistory.map(formatMessageLine).join('\n');
 
+    const filledSystemPrompt = SYSTEM_PROMPT.replace('{rag_context}', knowledgeContext || '(none found)');
+
     const contextSections = [
-      SYSTEM_PROMPT,
-      knowledgeContext ? `Knowledge Context:\n${knowledgeContext}` : 'Knowledge Context:\n(none found)',
+      filledSystemPrompt,
       input.conversationSummary ? `Conversation Summary:\n${input.conversationSummary}` : null,
     ].filter((section): section is string => section !== null);
 
@@ -67,7 +68,7 @@ export class PromptService {
       .join('\n\n');
 
     return {
-      systemPrompt: SYSTEM_PROMPT,
+      systemPrompt: filledSystemPrompt,
       knowledgeContext,
       conversationSummary: input.conversationSummary,
       recentMessages: truncatedHistory,
