@@ -96,6 +96,11 @@ see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#4-smoke-test-locally-before-deployin
   an earlier PostgreSQL Full-Text Search implementation
   ([sql/012_drop_fts.sql](sql/012_drop_fts.sql)) because keyword-only
   matching missed paraphrased/loosely-worded customer questions.
+- **Chunking**: every ingested page (PDF or TXT) is further split into
+  ~50-word chunks (`KNOWLEDGE_CHUNK_WORDS`,
+  `services/knowledgeIngestion.service.ts`) before embedding — keeps each
+  chunk within the embedding model's context window and avoids diluting a
+  page's embedding across unrelated content on the same page.
 - **Token budgets** are enforced per section: knowledge context ≤1200 tokens
   (excerpt-based, proportional to rank), conversation history ≤600 tokens
   (oldest messages dropped first), answer ≤250 tokens via Groq's `max_tokens`.

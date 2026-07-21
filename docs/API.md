@@ -72,11 +72,15 @@ an operator-only endpoint.
 | `401` | Missing/invalid `x-admin-api-key` |
 | `400` | Not multipart form data, or no `file` field present |
 
-PDF pages are extracted as plain text (no OCR, no embeddings) via
-`pdf-parse`. TXT files are split on form-feed (`\f`) characters if present,
-otherwise treated as a single page. Re-uploading the same filename replaces
-its existing rows (upsert on `source_file` + `source_page`) rather than
-duplicating them.
+PDF pages are extracted as plain text (no OCR) via `pdf-parse`. TXT files
+are split on form-feed (`\f`) characters if present, otherwise treated as a
+single page. Every page (from either source) is then further split into
+~50-word chunks (`KNOWLEDGE_CHUNK_WORDS`, default 50) and each chunk is
+embedded separately via the `generate-embedding` Edge Function — so a
+single-page TXT file with no form-feeds still ends up as multiple rows, not
+one. Re-uploading the same filename replaces its existing rows (upsert on
+`source_file` + `source_page`, where `source_page` is really an ordinal
+chunk index) rather than duplicating them.
 
 ## `GET /api/admin/knowledge`
 

@@ -20,7 +20,7 @@ describe('KnowledgeIngestionService', () => {
 
     expect(docs).toHaveLength(1);
     expect(upsertPage).toHaveBeenCalledWith({
-      title: 'refunds.txt — Page 1',
+      title: 'refunds.txt — Part 1',
       category: 'billing',
       content: 'Our refund policy is 30 days.',
       sourceFile: 'refunds.txt',
@@ -54,8 +54,25 @@ describe('KnowledgeIngestionService', () => {
     expect(docs).toHaveLength(2);
     expect(upsertPage).toHaveBeenNthCalledWith(
       1,
-      expect.objectContaining({ title: 'manual.pdf — Page 1', sourcePage: 1, category: 'support' }),
+      expect.objectContaining({ title: 'manual.pdf — Part 1', sourcePage: 1, category: 'support' }),
     );
+  });
+
+  it('splits a long page into multiple ~50-word chunks before embedding', async () => {
+    const upsertPage = vi.fn().mockImplementation(async (input) => ({ id: input.sourcePage, ...input }));
+    const knowledgeRepo = { upsertPage } as unknown as KnowledgeRepository;
+    const service = new KnowledgeIngestionService(knowledgeRepo, async () => [], fakeEmbeddingsClient());
+
+    const longText = Array.from({ length: 120 }, (_, i) => `word${i}`).join(' ');
+    const docs = await service.ingestFile(Buffer.from(longText), 'notes.txt');
+
+    expect(docs).toHaveLength(3); // ceil(120 / 50)
+    expect(upsertPage).toHaveBeenNthCalledWith(1, expect.objectContaining({ sourcePage: 1, title: 'notes.txt — Part 1' }));
+    expect(upsertPage).toHaveBeenNthCalledWith(2, expect.objectContaining({ sourcePage: 2, title: 'notes.txt — Part 2' }));
+    expect(upsertPage).toHaveBeenNthCalledWith(3, expect.objectContaining({ sourcePage: 3, title: 'notes.txt — Part 3' }));
+
+    const firstChunkWordCount = (upsertPage.mock.calls[0]?.[0].content as string).split(' ').length;
+    expect(firstChunkWordCount).toBe(50);
   });
 
   it('defaults category to "general" when none is provided', async () => {
