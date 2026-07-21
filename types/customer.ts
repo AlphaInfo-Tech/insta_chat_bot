@@ -9,3 +9,7 @@ export interface CreateCustomerInput {
   instagramId: string;
   username?: string | null;
 }
+
+export interface UpdateCustomerInput {
+  username?: string | null;
+}

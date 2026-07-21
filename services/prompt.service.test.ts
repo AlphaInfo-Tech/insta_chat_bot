@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { PromptService } from './prompt.service';
 import type { Message } from '@/types/message';
+import { DEFAULT_SETTINGS } from '@/types/settings';
 
 function makeMessage(id: string, role: Message['role'], message: string): Message {
   return {
@@ -22,10 +23,11 @@ describe('PromptService.buildPrompt', () => {
       conversationSummary: 'Customer previously asked about shipping.',
       recentMessages: [makeMessage('m1', 'user', 'Hi'), makeMessage('m2', 'assistant', 'Hello!')],
       userQuestion: 'What is your refund policy?',
+      settings: DEFAULT_SETTINGS,
     });
 
-    const systemIdx = result.fullPrompt.indexOf('You are a helpful customer support assistant');
-    const knowledgeIdx = result.fullPrompt.indexOf('Knowledge Context:');
+    const systemIdx = result.fullPrompt.indexOf(`You are ${DEFAULT_SETTINGS.agentName}`);
+    const knowledgeIdx = result.fullPrompt.indexOf('KNOWLEDGE CONTEXT');
     const summaryIdx = result.fullPrompt.indexOf('Conversation Summary:');
     const recentIdx = result.fullPrompt.indexOf('Recent Messages:');
     const questionIdx = result.fullPrompt.indexOf('Current User Question:');
@@ -47,6 +49,7 @@ describe('PromptService.buildPrompt', () => {
       conversationSummary: null,
       recentMessages: [],
       userQuestion: 'Hi',
+      settings: DEFAULT_SETTINGS,
     });
 
     expect(result.fullPrompt).not.toContain('Conversation Summary:');
@@ -64,6 +67,7 @@ describe('PromptService.buildPrompt', () => {
       conversationSummary: null,
       recentMessages: messages,
       userQuestion: 'question',
+      settings: DEFAULT_SETTINGS,
     });
 
     expect(result.recentMessages.length).toBeLessThan(messages.length);

@@ -16,7 +16,7 @@ function fakeEmbeddingsClient(): EmbeddingsClient {
 describe('RagService', () => {
   it('returns empty context when there are no matches', async () => {
     const service = new RagService(fakeKnowledgeRepo([]), fakeEmbeddingsClient());
-    const result = await service.retrieveContext('refund');
+    const result = await service.retrieveContext('refund', 1200);
     expect(result.docs).toEqual([]);
     expect(result.contextText).toBe('');
     expect(result.tokenCount).toBe(0);
@@ -33,7 +33,7 @@ describe('RagService', () => {
     ];
 
     const service = new RagService(fakeKnowledgeRepo(docs), fakeEmbeddingsClient());
-    const result = await service.retrieveContext('refund policy');
+    const result = await service.retrieveContext('refund policy', 1200);
 
     expect(estimateTokens(result.contextText)).toBeLessThanOrEqual(1200);
   });
@@ -46,7 +46,7 @@ describe('RagService', () => {
     ];
 
     const service = new RagService(fakeKnowledgeRepo(docs), fakeEmbeddingsClient());
-    const result = await service.retrieveContext('x');
+    const result = await service.retrieveContext('x', 1200);
 
     const highSection = result.contextText.split('### Low Rank')[0] ?? '';
     const lowSectionIndex = result.contextText.indexOf('### Low Rank');

@@ -28,7 +28,9 @@
       "@/repositories/*": ["repositories/*"],
       "@/services/*": ["services/*"],
       "@/utils/*": ["utils/*"],
-      "@/prompts/*": ["prompts/*"]
+      "@/prompts/*": ["prompts/*"],
+      "@/components/*": ["components/*"],
+      "@/app/*": ["app/*"]
     }
   },
   "include": [

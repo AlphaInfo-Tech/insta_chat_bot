@@ -1,17 +1,16 @@
-import { SYSTEM_PROMPT } from '@/prompts/systemPrompt';
+import { buildSystemPrompt } from '@/prompts/systemPrompt';
 import { estimateTokens, truncateToTokenBudget } from '@/utils/tokenCounter';
 import type { Message } from '@/types/message';
 import type { GroqChatMessage } from '@/types/groq';
 import type { PromptAssembly } from '@/types/prompt';
-
-const KNOWLEDGE_CONTEXT_MAX_TOKENS = Number(process.env.KNOWLEDGE_CONTEXT_MAX_TOKENS ?? 1200);
-const CONVERSATION_HISTORY_MAX_TOKENS = Number(process.env.CONVERSATION_HISTORY_MAX_TOKENS ?? 600);
+import type { AppSettings } from '@/types/settings';
 
 export interface BuildPromptInput {
   knowledgeContext: string;
   conversationSummary: string | null;
   recentMessages: Message[];
   userQuestion: string;
+  settings: AppSettings;
 }
 
 function formatMessageLine(m: Message): string {
@@ -37,11 +36,14 @@ function truncateHistory(messages: Message[], maxTokens: number): Message[] {
 
 export class PromptService {
   buildPrompt(input: BuildPromptInput): PromptAssembly {
-    const knowledgeContext = truncateToTokenBudget(input.knowledgeContext, KNOWLEDGE_CONTEXT_MAX_TOKENS);
-    const truncatedHistory = truncateHistory(input.recentMessages, CONVERSATION_HISTORY_MAX_TOKENS);
+    const knowledgeContext = truncateToTokenBudget(input.knowledgeContext, input.settings.knowledgeContextMaxTokens);
+    const truncatedHistory = truncateHistory(input.recentMessages, input.settings.conversationHistoryMaxTokens);
     const historyText = truncatedHistory.map(formatMessageLine).join('\n');
 
-    const filledSystemPrompt = SYSTEM_PROMPT.replace('{rag_context}', knowledgeContext || '(none found)');
+    const filledSystemPrompt = buildSystemPrompt(input.settings).replace(
+      '{rag_context}',
+      knowledgeContext || '(none found)',
+    );
 
     const contextSections = [
       filledSystemPrompt,

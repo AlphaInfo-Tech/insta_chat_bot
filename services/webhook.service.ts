@@ -3,15 +3,13 @@ import type { ConversationService } from '@/services/conversation.service';
 import type { MessageService } from '@/services/message.service';
 import type { RagService } from '@/services/rag.service';
 import type { PromptService } from '@/services/prompt.service';
+import type { SettingsService } from '@/services/settings.service';
 import type { WebhookEventRepository } from '@/repositories/webhookEvent.repository';
 import type { GroqClient } from '@/lib/groq';
 import type { InstagramClient } from '@/lib/instagram';
 import type { InstagramMessagingEvent } from '@/types/webhookEvents';
 import { detectIntent, getAttachmentCannedResponse } from '@/utils/intent';
-import { FALLBACK_ANSWER } from '@/prompts/systemPrompt';
 import { logger } from '@/utils/logger';
-
-const ANSWER_MAX_TOKENS = Number(process.env.ANSWER_MAX_TOKENS ?? 250);
 
 export class WebhookService {
   constructor(
@@ -23,6 +21,7 @@ export class WebhookService {
     private readonly webhookEventRepo: WebhookEventRepository,
     private readonly groqClient: GroqClient,
     private readonly instagramClient: InstagramClient,
+    private readonly settingsService: SettingsService,
   ) {}
 
   async handleIncomingMessage(event: InstagramMessagingEvent): Promise<void> {
@@ -70,28 +69,31 @@ export class WebhookService {
       return;
     }
 
-    await this.conversationService.maybeSummarize(conversation);
+    const settings = await this.settingsService.getSettings();
+
+    await this.conversationService.maybeSummarize(conversation, settings.summarizationThresholdMessages);
     const history = await this.conversationService.loadHistoryForPrompt(conversation.id);
-    const ragContext = await this.ragService.retrieveContext(text);
+    const ragContext = await this.ragService.retrieveContext(text, settings.knowledgeContextMaxTokens);
 
     const prompt = this.promptService.buildPrompt({
       knowledgeContext: ragContext.contextText,
       conversationSummary: history.summary,
       recentMessages: history.recentMessages,
       userQuestion: text,
+      settings,
     });
 
     let replyText: string;
     let completionTokens = 0;
     try {
       const result = await this.groqClient.createCompletion(prompt.chatMessages, {
-        maxTokens: ANSWER_MAX_TOKENS,
+        maxTokens: settings.answerMaxTokens,
       });
-      replyText = result.content || FALLBACK_ANSWER;
+      replyText = result.content || settings.fallbackAnswer;
       completionTokens = result.completionTokens;
     } catch (err) {
       logger.error('groq_completion_failed', { error: String(err), conversationId: conversation.id });
-      replyText = FALLBACK_ANSWER;
+      replyText = settings.fallbackAnswer;
     }
 
     await this.messageService.saveAssistantMessage(conversation.id, replyText, completionTokens);

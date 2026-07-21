@@ -5,7 +5,6 @@ import type { Conversation } from '@/types/conversation';
 import type { Message } from '@/types/message';
 import { logger } from '@/utils/logger';
 
-const SUMMARIZATION_THRESHOLD = Number(process.env.SUMMARIZATION_THRESHOLD_MESSAGES ?? 50);
 const RECENT_MESSAGE_LIMIT = 10;
 const SUMMARY_MODEL = process.env.GROQ_SUMMARY_MODEL ?? process.env.GROQ_MODEL;
 const SUMMARY_MAX_TOKENS = 300;
@@ -46,14 +45,14 @@ export class ConversationService {
    * the threshold and there are messages beyond the last-10 window not yet
    * covered by the existing summary (or no summary exists yet).
    */
-  async maybeSummarize(conversation: Conversation): Promise<void> {
-    if (conversation.messageCount <= SUMMARIZATION_THRESHOLD) return;
+  async maybeSummarize(conversation: Conversation, summarizationThresholdMessages: number): Promise<void> {
+    if (conversation.messageCount <= summarizationThresholdMessages) return;
 
     const latestSummary = await this.conversationRepo.getLatestSummary(conversation.id);
     const coveredUpTo = latestSummary?.messageCountAtSummary ?? 0;
     const uncoveredBeyondRecentWindow = conversation.messageCount - RECENT_MESSAGE_LIMIT - coveredUpTo;
 
-    if (latestSummary && uncoveredBeyondRecentWindow < SUMMARIZATION_THRESHOLD) return;
+    if (latestSummary && uncoveredBeyondRecentWindow < summarizationThresholdMessages) return;
 
     const allMessages = await this.messageRepo.findRecentByConversationId(
       conversation.id,

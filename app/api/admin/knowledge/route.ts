@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildAppContainer } from '@/lib/composition';
+import { isAuthorized } from '@/lib/adminAuth';
+import { parsePagination } from '@/lib/adminPagination';
 import { logger } from '@/utils/logger';
 
 export const runtime = 'nodejs';
 
 const ALLOWED_EXTENSIONS = new Set(['pdf', 'txt']);
-
-function isAuthorized(req: NextRequest): boolean {
-  const key = process.env.ADMIN_API_KEY;
-  if (!key) return false;
-  return req.headers.get('x-admin-api-key') === key;
-}
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!isAuthorized(req)) {
@@ -65,9 +61,46 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const { knowledgeIngestionService } = buildAppContainer();
-  const files = await knowledgeIngestionService.listFiles();
 
+  // ?view=rows returns the paginated per-row table view; default keeps the
+  // original per-file-aggregated shape the existing upload UI relies on.
+  if (req.nextUrl.searchParams.get('view') === 'rows') {
+    const { page, pageSize, search } = parsePagination(req);
+    const sourceFile = req.nextUrl.searchParams.get('sourceFile') ?? undefined;
+    const category = req.nextUrl.searchParams.get('category') ?? undefined;
+    const result = await knowledgeIngestionService.listRows({ page, pageSize, search, sourceFile, category });
+    return NextResponse.json(result, { status: 200 });
+  }
+
+  const files = await knowledgeIngestionService.listFiles();
   return NextResponse.json({ files }, { status: 200 });
+}
+
+export async function PATCH(req: NextRequest): Promise<NextResponse> {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+
+  const id = req.nextUrl.searchParams.get('id');
+  if (!id) {
+    return NextResponse.json({ error: 'missing "id" query parameter' }, { status: 400 });
+  }
+
+  let body: { title?: string; category?: string | null; keywords?: string[] | null; content?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'expected a JSON body' }, { status: 400 });
+  }
+
+  const { knowledgeIngestionService } = buildAppContainer();
+  try {
+    const updated = await knowledgeIngestionService.updateRow(id, body);
+    return NextResponse.json({ row: updated }, { status: 200 });
+  } catch (err) {
+    logger.error('knowledge_row_update_failed', { id, error: String(err) });
+    return NextResponse.json({ error: 'update failed' }, { status: 500 });
+  }
 }
 
 export async function DELETE(req: NextRequest): Promise<NextResponse> {
@@ -75,13 +108,19 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  const sourceFile = req.nextUrl.searchParams.get('file');
-  if (!sourceFile) {
-    return NextResponse.json({ error: 'missing "file" query parameter' }, { status: 400 });
+  const { knowledgeIngestionService } = buildAppContainer();
+
+  const id = req.nextUrl.searchParams.get('id');
+  if (id) {
+    await knowledgeIngestionService.deleteRow(id);
+    return NextResponse.json({ deleted: id }, { status: 200 });
   }
 
-  const { knowledgeIngestionService } = buildAppContainer();
-  await knowledgeIngestionService.deleteFile(sourceFile);
+  const sourceFile = req.nextUrl.searchParams.get('file');
+  if (!sourceFile) {
+    return NextResponse.json({ error: 'missing "id" or "file" query parameter' }, { status: 400 });
+  }
 
+  await knowledgeIngestionService.deleteFile(sourceFile);
   return NextResponse.json({ deleted: sourceFile }, { status: 200 });
 }

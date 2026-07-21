@@ -4,6 +4,7 @@ import type { ConversationService } from './conversation.service';
 import type { MessageService } from './message.service';
 import type { RagService } from './rag.service';
 import type { PromptService } from './prompt.service';
+import type { SettingsService } from './settings.service';
 import type { WebhookEventRepository } from '@/repositories/webhookEvent.repository';
 import type { GroqClient } from '@/lib/groq';
 import type { InstagramClient } from '@/lib/instagram';
@@ -11,6 +12,7 @@ import type { InstagramMessagingEvent } from '@/types/webhookEvents';
 import type { Customer } from '@/types/customer';
 import type { Conversation } from '@/types/conversation';
 import { WebhookService } from './webhook.service';
+import { DEFAULT_SETTINGS } from '@/types/settings';
 
 const CUSTOMER: Customer = { id: 'cust-1', instagramId: 'ig-1', username: null, createdAt: '' };
 const CONVERSATION: Conversation = {
@@ -55,6 +57,9 @@ function buildDeps(overrides: {
     }),
   } as unknown as GroqClient;
   const instagramClient = { sendMessage: vi.fn().mockResolvedValue(undefined) } as unknown as InstagramClient;
+  const settingsService = {
+    getSettings: vi.fn().mockResolvedValue(DEFAULT_SETTINGS),
+  } as unknown as SettingsService;
 
   const service = new WebhookService(
     customerService,
@@ -65,9 +70,20 @@ function buildDeps(overrides: {
     webhookEventRepo,
     groqClient,
     instagramClient,
+    settingsService,
   );
 
-  return { service, customerService, conversationService, messageService, ragService, groqClient, instagramClient, webhookEventRepo };
+  return {
+    service,
+    customerService,
+    conversationService,
+    messageService,
+    ragService,
+    groqClient,
+    instagramClient,
+    webhookEventRepo,
+    settingsService,
+  };
 }
 
 function baseEvent(overrides: Partial<InstagramMessagingEvent> = {}): InstagramMessagingEvent {
@@ -122,7 +138,10 @@ describe('WebhookService.handleIncomingMessage', () => {
     const { service, ragService, groqClient, instagramClient, messageService } = buildDeps();
     await service.handleIncomingMessage(baseEvent({ message: { mid: 'm1', text: 'What is your refund policy?' } }));
 
-    expect(ragService.retrieveContext).toHaveBeenCalledWith('What is your refund policy?');
+    expect(ragService.retrieveContext).toHaveBeenCalledWith(
+      'What is your refund policy?',
+      DEFAULT_SETTINGS.knowledgeContextMaxTokens,
+    );
     expect(groqClient.createCompletion).toHaveBeenCalledTimes(1);
     expect(messageService.saveAssistantMessage).toHaveBeenCalledWith('conv-1', 'The refund policy is 30 days.', 42);
     expect(instagramClient.sendMessage).toHaveBeenCalledWith('ig-1', 'The refund policy is 30 days.', 'page-1');
@@ -136,7 +155,7 @@ describe('WebhookService.handleIncomingMessage', () => {
 
     expect(messageService.saveAssistantMessage).toHaveBeenCalledWith(
       'conv-1',
-      expect.stringContaining("couldn't find"),
+      DEFAULT_SETTINGS.fallbackAnswer,
       0,
     );
   });

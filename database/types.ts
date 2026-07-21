@@ -145,6 +145,36 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['processed_webhook_events']['Insert']>;
         Relationships: [];
       };
+      settings: {
+        Row: {
+          id: number;
+          agent_name: string;
+          company_name: string;
+          consult_cta: string;
+          whatsapp_cta: string;
+          fallback_answer: string;
+          knowledge_context_max_tokens: number;
+          conversation_history_max_tokens: number;
+          answer_max_tokens: number;
+          summarization_threshold_messages: number;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          agent_name?: string;
+          company_name?: string;
+          consult_cta?: string;
+          whatsapp_cta?: string;
+          fallback_answer?: string;
+          knowledge_context_max_tokens?: number;
+          conversation_history_max_tokens?: number;
+          answer_max_tokens?: number;
+          summarization_threshold_messages?: number;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['settings']['Insert']>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

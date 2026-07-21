@@ -40,7 +40,7 @@ describe('ConversationService.maybeSummarize', () => {
     const groqClient = { createCompletion: vi.fn() } as unknown as GroqClient;
 
     const service = new ConversationService(conversationRepo, messageRepo, groqClient);
-    await service.maybeSummarize(makeConversation(10));
+    await service.maybeSummarize(makeConversation(10), 50);
 
     expect(saveSummary).not.toHaveBeenCalled();
     expect(groqClient.createCompletion).not.toHaveBeenCalled();
@@ -66,7 +66,7 @@ describe('ConversationService.maybeSummarize', () => {
     } as unknown as GroqClient;
 
     const service = new ConversationService(conversationRepo, messageRepo, groqClient);
-    await service.maybeSummarize(makeConversation(55));
+    await service.maybeSummarize(makeConversation(55), 50);
 
     expect(groqClient.createCompletion).toHaveBeenCalledTimes(1);
     expect(conversationRepo.saveSummary).toHaveBeenCalledWith('conv-1', 'Summary text', 55);
@@ -88,7 +88,7 @@ describe('ConversationService.maybeSummarize', () => {
     const groqClient = { createCompletion: vi.fn() } as unknown as GroqClient;
 
     const service = new ConversationService(conversationRepo, messageRepo, groqClient);
-    await service.maybeSummarize(makeConversation(55));
+    await service.maybeSummarize(makeConversation(55), 50);
 
     expect(groqClient.createCompletion).not.toHaveBeenCalled();
     expect(conversationRepo.saveSummary).not.toHaveBeenCalled();

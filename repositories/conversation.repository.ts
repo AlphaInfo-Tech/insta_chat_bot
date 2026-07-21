@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/database/types';
-import type { Conversation, ConversationSummary } from '@/types/conversation';
+import type { Conversation, ConversationSummary, UpdateConversationInput } from '@/types/conversation';
+import type { ListOptions, ListResult } from '@/types/pagination';
+import { toRange } from '@/lib/adminPagination';
 
 function mapConversationRow(
   row: Database['public']['Tables']['conversations']['Row'],
@@ -111,5 +113,38 @@ export class ConversationRepository {
 
     if (error) throw error;
     return mapSummaryRow(data);
+  }
+
+  async list(
+    opts: ListOptions & { status?: 'active' | 'closed'; customerId?: string },
+  ): Promise<ListResult<Conversation>> {
+    const [from, to] = toRange(opts.page, opts.pageSize);
+    let query = this.db.from('conversations').select('*', { count: 'exact' });
+
+    if (opts.status) query = query.eq('status', opts.status);
+    if (opts.customerId) query = query.eq('customer_id', opts.customerId);
+
+    const { data, error, count } = await query.order('created_at', { ascending: false }).range(from, to);
+
+    if (error) throw error;
+    return { rows: (data ?? []).map(mapConversationRow), total: count ?? 0, page: opts.page, pageSize: opts.pageSize };
+  }
+
+  async update(id: string, input: UpdateConversationInput): Promise<Conversation> {
+    const { data, error } = await this.db
+      .from('conversations')
+      .update({ ...(input.status !== undefined && { status: input.status }) })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    return mapConversationRow(data);
+  }
+
+  /** Cascades to messages/summaries via FK on delete cascade. */
+  async delete(id: string): Promise<void> {
+    const { error } = await this.db.from('conversations').delete().eq('id', id);
+    if (error) throw error;
   }
 }

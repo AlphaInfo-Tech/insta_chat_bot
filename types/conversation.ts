@@ -9,6 +9,10 @@ export interface Conversation {
   updatedAt: string;
 }
 
+export interface UpdateConversationInput {
+  status?: ConversationStatus;
+}
+
 export interface ConversationSummary {
   id: string;
   conversationId: string;

@@ -17,3 +17,7 @@ export interface CreateMessageInput {
   tokens?: number;
   instagramMessageId?: string;
 }
+
+export interface UpdateMessageInput {
+  message?: string;
+}

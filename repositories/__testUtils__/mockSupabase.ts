@@ -7,6 +7,8 @@
 export interface MockResult<T = unknown> {
   data: T;
   error: { message: string } | null;
+  /** Only set by callers testing paginated list() methods that use select(..., { count: 'exact' }). */
+  count?: number | null;
 }
 
 function createChain<T>(result: MockResult<T>): PromiseLike<MockResult<T>> & Record<string, unknown> {
@@ -18,8 +20,12 @@ function createChain<T>(result: MockResult<T>): PromiseLike<MockResult<T>> & Rec
     delete: () => chain,
     eq: () => chain,
     not: () => chain,
+    or: () => chain,
+    ilike: () => chain,
+    lt: () => chain,
     order: () => chain,
     limit: () => chain,
+    range: () => chain,
     single: () => Promise.resolve(result),
     maybeSingle: () => Promise.resolve(result),
     then: (

@@ -5,7 +5,6 @@ import { estimateTokens } from '@/utils/tokenCounter';
 import { logger } from '@/utils/logger';
 
 const TOP_K = 5;
-const KNOWLEDGE_CONTEXT_MAX_TOKENS = Number(process.env.KNOWLEDGE_CONTEXT_MAX_TOKENS ?? 1200);
 const MIN_TOKENS_PER_DOC = 50;
 
 export interface RagContext {
@@ -49,7 +48,7 @@ export class RagService {
    * within the knowledge-context token budget rather than dropping whole
    * documents.
    */
-  async retrieveContext(userQuestion: string): Promise<RagContext> {
+  async retrieveContext(userQuestion: string, knowledgeContextMaxTokens: number): Promise<RagContext> {
     const queryEmbedding = await this.embeddingsClient.embed(userQuestion);
     const docs = await this.knowledgeRepo.searchByEmbedding(queryEmbedding, TOP_K);
 
@@ -61,7 +60,7 @@ export class RagService {
     const sorted = [...docs].sort((a, b) => (b.rank ?? 0) - (a.rank ?? 0));
     const totalRank = sorted.reduce((sum, d) => sum + (d.rank ?? 0), 0);
 
-    let remainingBudget = KNOWLEDGE_CONTEXT_MAX_TOKENS;
+    let remainingBudget = knowledgeContextMaxTokens;
     const sections: string[] = [];
     const includedDocs: KnowledgeDoc[] = [];
 
@@ -71,7 +70,7 @@ export class RagService {
       const share = totalRank > 0 ? (doc.rank ?? 0) / totalRank : 1 / sorted.length;
       const tokenBudget = Math.min(
         remainingBudget,
-        Math.max(MIN_TOKENS_PER_DOC, Math.floor(KNOWLEDGE_CONTEXT_MAX_TOKENS * share)),
+        Math.max(MIN_TOKENS_PER_DOC, Math.floor(knowledgeContextMaxTokens * share)),
       );
 
       const excerpt = extractExcerpt(doc.content, userQuestion, tokenBudget * 4);

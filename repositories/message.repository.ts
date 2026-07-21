@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/database/types';
-import type { Message, CreateMessageInput } from '@/types/message';
+import type { Message, CreateMessageInput, UpdateMessageInput, MessageRole } from '@/types/message';
+import type { ListOptions, ListResult } from '@/types/pagination';
+import { toRange } from '@/lib/adminPagination';
 
 function mapRow(row: Database['public']['Tables']['messages']['Row']): Message {
   return {
@@ -57,5 +59,43 @@ export class MessageRepository {
 
     if (error) throw error;
     return data !== null;
+  }
+
+  async list(
+    opts: ListOptions & { conversationId?: string; role?: MessageRole },
+  ): Promise<ListResult<Message>> {
+    const [from, to] = toRange(opts.page, opts.pageSize);
+    let query = this.db.from('messages').select('*', { count: 'exact' });
+
+    if (opts.conversationId) query = query.eq('conversation_id', opts.conversationId);
+    if (opts.role) query = query.eq('role', opts.role);
+    if (opts.search) query = query.ilike('message', `%${opts.search.replace(/[%,]/g, '')}%`);
+
+    const { data, error, count } = await query.order('created_at', { ascending: false }).range(from, to);
+
+    if (error) throw error;
+    return { rows: (data ?? []).map(mapRow), total: count ?? 0, page: opts.page, pageSize: opts.pageSize };
+  }
+
+  async update(id: string, input: UpdateMessageInput): Promise<Message> {
+    const { data, error } = await this.db
+      .from('messages')
+      .update({ ...(input.message !== undefined && { message: input.message }) })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    return mapRow(data);
+  }
+
+  /**
+   * Note: conversations.message_count is trigger-incremented on insert only,
+   * so deleting a message here does not decrement it — pre-existing trigger
+   * design, not something this method changes.
+   */
+  async delete(id: string): Promise<void> {
+    const { error } = await this.db.from('messages').delete().eq('id', id);
+    if (error) throw error;
   }
 }

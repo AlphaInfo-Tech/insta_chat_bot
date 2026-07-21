@@ -29,3 +29,11 @@ export interface KnowledgeFileSummary {
   pageCount: number;
   uploadedAt: string;
 }
+
+export interface UpdateKnowledgeInput {
+  title?: string;
+  category?: string | null;
+  keywords?: string[] | null;
+  /** Changing content requires re-embedding — handled in KnowledgeIngestionService.updateRow, not the repository. */
+  content?: string;
+}

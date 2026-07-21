@@ -5,7 +5,10 @@ import type {
   CreateKnowledgeInput,
   UpsertKnowledgePageInput,
   KnowledgeFileSummary,
+  UpdateKnowledgeInput,
 } from '@/types/knowledge';
+import type { ListOptions, ListResult } from '@/types/pagination';
+import { toRange } from '@/lib/adminPagination';
 
 function mapRow(row: Database['public']['Tables']['knowledge']['Row']): KnowledgeDoc {
   return {
@@ -126,6 +129,48 @@ export class KnowledgeRepository {
   /** Deletes every page row belonging to a source file. */
   async deleteByFile(sourceFile: string): Promise<void> {
     const { error } = await this.db.from('knowledge').delete().eq('source_file', sourceFile);
+    if (error) throw error;
+  }
+
+  /** Individual rows (not file-aggregated like listFiles()), for the per-row admin table view. */
+  async list(opts: ListOptions & { sourceFile?: string; category?: string }): Promise<ListResult<KnowledgeDoc>> {
+    const [from, to] = toRange(opts.page, opts.pageSize);
+    let query = this.db.from('knowledge').select('*', { count: 'exact' });
+
+    if (opts.sourceFile) query = query.eq('source_file', opts.sourceFile);
+    if (opts.category) query = query.eq('category', opts.category);
+    if (opts.search) query = query.or(`title.ilike.%${opts.search.replace(/[%,]/g, '')}%`);
+
+    const { data, error, count } = await query.order('created_at', { ascending: false }).range(from, to);
+
+    if (error) throw error;
+    return { rows: (data ?? []).map(mapRow), total: count ?? 0, page: opts.page, pageSize: opts.pageSize };
+  }
+
+  /**
+   * embedding must be supplied by the caller (KnowledgeIngestionService)
+   * whenever content changes — this repository does no embedding itself.
+   */
+  async update(id: string, input: UpdateKnowledgeInput & { embedding?: number[] }): Promise<KnowledgeDoc> {
+    const { data, error } = await this.db
+      .from('knowledge')
+      .update({
+        ...(input.title !== undefined && { title: input.title }),
+        ...(input.category !== undefined && { category: input.category }),
+        ...(input.keywords !== undefined && { keywords: input.keywords }),
+        ...(input.content !== undefined && { content: input.content }),
+        ...(input.embedding !== undefined && { embedding: input.embedding }),
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    return mapRow(data);
+  }
+
+  async delete(id: string): Promise<void> {
+    const { error } = await this.db.from('knowledge').delete().eq('id', id);
     if (error) throw error;
   }
 }

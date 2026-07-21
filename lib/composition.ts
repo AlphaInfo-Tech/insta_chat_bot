@@ -9,6 +9,7 @@ import { MessageRepository } from '@/repositories/message.repository';
 import { KnowledgeRepository } from '@/repositories/knowledge.repository';
 import { RateLimitRepository } from '@/repositories/rateLimit.repository';
 import { WebhookEventRepository } from '@/repositories/webhookEvent.repository';
+import { SettingsRepository } from '@/repositories/settings.repository';
 import { CustomerService } from '@/services/customer.service';
 import { ConversationService } from '@/services/conversation.service';
 import { MessageService } from '@/services/message.service';
@@ -16,6 +17,7 @@ import { RagService } from '@/services/rag.service';
 import { PromptService } from '@/services/prompt.service';
 import { RateLimitService } from '@/services/rateLimit.service';
 import { KnowledgeIngestionService } from '@/services/knowledgeIngestion.service';
+import { SettingsService } from '@/services/settings.service';
 import { WebhookService } from '@/services/webhook.service';
 
 /**
@@ -32,6 +34,7 @@ export function buildAppContainer() {
   const knowledgeRepo = new KnowledgeRepository(db);
   const rateLimitRepo = new RateLimitRepository(db);
   const webhookEventRepo = new WebhookEventRepository(db);
+  const settingsRepo = new SettingsRepository(db);
 
   const groqClient = new GroqClient();
   const instagramClient = new InstagramClient();
@@ -44,6 +47,7 @@ export function buildAppContainer() {
   const promptService = new PromptService();
   const rateLimitService = new RateLimitService(rateLimitRepo);
   const knowledgeIngestionService = new KnowledgeIngestionService(knowledgeRepo, extractPdfPages, embeddingsClient);
+  const settingsService = new SettingsService(settingsRepo);
 
   const webhookService = new WebhookService(
     customerService,
@@ -54,7 +58,21 @@ export function buildAppContainer() {
     webhookEventRepo,
     groqClient,
     instagramClient,
+    settingsService,
   );
 
-  return { webhookService, rateLimitService, knowledgeIngestionService };
+  return {
+    webhookService,
+    rateLimitService,
+    knowledgeIngestionService,
+    settingsService,
+    customerRepo,
+    conversationRepo,
+    messageRepo,
+    knowledgeRepo,
+    rateLimitRepo,
+    webhookEventRepo,
+    settingsRepo,
+    embeddingsClient,
+  };
 }

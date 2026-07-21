@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/database/types';
 import type { RateLimitRecord } from '@/types/rateLimit';
+import type { ListOptions, ListResult } from '@/types/pagination';
+import { toRange } from '@/lib/adminPagination';
 
 function mapRow(row: Database['public']['Tables']['rate_limits']['Row']): RateLimitRecord {
   return {
@@ -29,5 +31,23 @@ export class RateLimitRepository {
     const row = Array.isArray(data) ? data[0] : data;
     if (!row) throw new Error('increment_rate_limit returned no row');
     return mapRow(row);
+  }
+
+  async list(opts: ListOptions): Promise<ListResult<RateLimitRecord>> {
+    const [from, to] = toRange(opts.page, opts.pageSize);
+    let query = this.db.from('rate_limits').select('*', { count: 'exact' });
+
+    if (opts.search) query = query.ilike('rate_key', `%${opts.search.replace(/[%,]/g, '')}%`);
+
+    const { data, error, count } = await query.order('window_start', { ascending: false }).range(from, to);
+
+    if (error) throw error;
+    return { rows: (data ?? []).map(mapRow), total: count ?? 0, page: opts.page, pageSize: opts.pageSize };
+  }
+
+  /** Deletes a rate-limit window row, effectively un-blocking that sender immediately. */
+  async delete(id: string): Promise<void> {
+    const { error } = await this.db.from('rate_limits').delete().eq('id', id);
+    if (error) throw error;
   }
 }

@@ -1,6 +1,7 @@
 import type { KnowledgeRepository } from '@/repositories/knowledge.repository';
 import type { EmbeddingsClient } from '@/lib/embeddings';
-import type { KnowledgeDoc, KnowledgeFileSummary } from '@/types/knowledge';
+import type { KnowledgeDoc, KnowledgeFileSummary, UpdateKnowledgeInput } from '@/types/knowledge';
+import type { ListOptions, ListResult } from '@/types/pagination';
 import { logger } from '@/utils/logger';
 
 const DEFAULT_CATEGORY = 'general';
@@ -65,6 +66,23 @@ export class KnowledgeIngestionService {
   async deleteFile(sourceFile: string): Promise<void> {
     await this.knowledgeRepo.deleteByFile(sourceFile);
     logger.info('knowledge_file_deleted', { filename: sourceFile });
+  }
+
+  async listRows(opts: ListOptions & { sourceFile?: string; category?: string }): Promise<ListResult<KnowledgeDoc>> {
+    return this.knowledgeRepo.list(opts);
+  }
+
+  /** Re-embeds via EmbeddingsClient whenever content changes, so vector search never goes stale after an edit. */
+  async updateRow(id: string, input: UpdateKnowledgeInput): Promise<KnowledgeDoc> {
+    const embedding = input.content !== undefined ? await this.embeddingsClient.embed(input.content) : undefined;
+    const updated = await this.knowledgeRepo.update(id, { ...input, embedding });
+    logger.info('knowledge_row_updated', { id, reEmbedded: embedding !== undefined });
+    return updated;
+  }
+
+  async deleteRow(id: string): Promise<void> {
+    await this.knowledgeRepo.delete(id);
+    logger.info('knowledge_row_deleted', { id });
   }
 
   private splitTxtPages(buffer: Buffer): string[] {
